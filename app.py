@@ -14,7 +14,7 @@ load_dotenv()
 
 app = Flask(__name__)
 # Enable CORS for security
-CORS(app, resources={r"/*": {"origins": os.getenv('ALLOWED_ORIGINS', '*')}})
+CORS(app)
 
 # Add configuration class
 class Config:
@@ -94,6 +94,9 @@ def index():
 def run_code():
     try:
         data = request.get_json()
+        if not data or 'code' not in data or 'testCases' not in data:
+            return jsonify({'error': 'Invalid request data'}), 400
+
         code = data['code']
         test_cases = data['testCases']
         output = []
@@ -113,11 +116,7 @@ def run_code():
         return jsonify({'output': output})
     
     except Exception as e:
-        return jsonify({'error': str(e)})
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(
-        host=Config.HOST,
-        port=Config.PORT,
-        debug=Config.DEBUG
-    )
+    app.run(debug=True)
