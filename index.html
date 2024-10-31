@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bit Battle</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Fullscreen Mode */
+        .fullscreen-mode {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: #ffffff !important;
+            z-index: 9999 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+
+        .fullscreen-mode .container {
+            flex: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 1rem;
+        }
+
+        .fullscreen-mode .exam-header {
+            flex: 0 0 auto;
+            padding: 1rem;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        /* Header Bar */
+        .exam-header {
+            position: sticky;
+            top: 0;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1rem;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Timer */
+        .timer {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: #1a365d;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10000;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Question Navigation */
+        .question-nav {
+            position: fixed;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        /* Editor Container */
+        .editor-container {
+            height: 400px !important;
+            margin: 1rem 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* Navigation Buttons */
+        .navigation {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1001;
+        }
+
+        .navigation button {
+            margin: 0 0.5rem;
+        }
+
+        /* Warning Modal */
+        .warning-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10002;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.5);
+            z-index: 10001;
+        }
+
+        .fullscreen-warning {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            z-index: 10000;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            height: 4px;
+            background: #e2e8f0;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1002;
+        }
+
+        .progress {
+            height: 100%;
+            background: #2563eb;
+            transition: width 0.3s ease;
+        }
+
+        /* Navigation Dots */
+        .nav-dots {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .nav-dot.active {
+            background: #2563eb;
+        }
+
+        /* Add styles for the content wrapper */
+        .content-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Progress Bar -->
+    <div class="progress-bar">
+        <div class="progress" id="examProgress"></div>
+    </div>
+
+    <!-- Timer -->
+    <div class="timer" id="examTimer">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span id="timeDisplay">02:00:00</span>
+    </div>
+
+    <!-- Question Navigation -->
+    <div class="question-nav">
+        <div class="nav-dots">
+            <!-- Will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="examContainer" class="container mx-auto p-6">
+        <div class="exam-header">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleFullScreen()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200">
+                        Enter Fullscreen
+                    </button>
+                    <h1 class="text-xl font-bold text-gray-800">Bit Battles</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-gray-600">Question <span id="currentQuestionNum">1</span>/5</span>
+                    <div id="timer" class="timer">00:00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-wrapper">
+            <div class="progress-bar">
+                <div class="progress" id="examProgress"></div>
+            </div>
+            <form id="examForm" class="mt-8">
+                <!-- Questions will be loaded here -->
+            </form>
+        </div>
+    </div>
+
+    <div id="warningModal" class="warning-modal">
+        <h3 class="text-xl font-bold mb-4">Warning!</h3>
+        <p class="mb-6">Are you sure you want to exit fullscreen mode? This may affect your exam session.</p>
+        <div class="flex justify-center gap-4">
+            <button onclick="confirmExitFullscreen()" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+                Exit Fullscreen
+            </button>
+            <button onclick="cancelExitFullscreen()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">
+                Cancel
+            </button>
+        </div>
+    </div>
+
+    <div id="modalOverlay" class="modal-overlay"></div>
+
+    <div id="fullscreenWarning" class="fullscreen-warning">
+        Please maintain fullscreen mode during the exam
+    </div>
+
+    <script>
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+
+        let currentQuestion = 1;
+        let editors = {};  // Store editor instances
+        let startTime = Date.now();  // For timer functionality
+
+        const examQuestions = [
+            {
+                id: 1,
+                title: "Question 1: Sum of Two Numbers",
+                description: "Write a function that returns the sum of two numbers.",
+                marks: 20,
+                testCases: [
+                    { input: [1, 2], expected: 3 },
+                    { input: [5, 7], expected: 12 },
+                    { input: [-1, 1], expected: 0 }
+                ]
+            },
+            {
+                id: 2,
+                title: "Question 2: Check Palindrome",
+                description: "Write a function that checks if a string is a palindrome.",
+                marks: 20,
+                testCases: [
+                    { input: "racecar", expected: true },
+                    { input: "hello", expected: false },
+                    { input: "A man a plan a canal Panama", expected: true }
+                ]
+            },
+            {
+                id: 3,
+                title: "Question 3: Fibonacci Sequence",
+                description: "Write a function that returns the nth Fibonacci number.",
+                marks: 20,
+                testCases: [
+                    { input: 0, expected: 0 },
+                    { input: 1, expected: 1 },
+                    { input: 5, expected: 5 }
+                ]
+            },
+            {
+                id: 4,
+                title: "Question 4: Find Maximum in Array",
+                description: "Write a function that returns the maximum number in an array.",
+                marks: 20,
+                testCases: [
+                    { input: [1, 2, 3, 4, 5], expected: 5 },
+                    { input: [-1, -2, -3, -4], expected: -1 },
+                    { input: [10, 20, 30, 40], expected: 40 }
+                ]
+            },
+            {
+                id: 5,
+                title: "Question 5: Reverse a String",
+                description: "Write a function that reverses a string.",
+                marks: 20,
+                testCases: [
+                    { input: "hello", expected: "olleh" },
+                    { input: "world", expected: "dlrow" },
+                    { input: "12345", expected: "54321" }
+                ]
+            }
+        ];
+
+        // Function to load questions
+        function loadQuestions() {
+            const form = document.getElementById('examForm');
+            form.innerHTML = '';
+
+            examQuestions.forEach(question => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question hidden';
+                questionDiv.id = `question${question.id}`;
+                
+                questionDiv.innerHTML = `
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold text-blue-600 mb-4">${question.title}</h3>
+                        <p class="text-gray-700 mb-4">${question.description}</p>
+                        <div class="bg-gray-50 p-4 rounded-md mb-4">
+                            <h4 class="font-semibold text-gray-700 mb-2">Test Cases:</h4>
+                            ${question.testCases.map((testCase, i) => `
+                                <div class="test-case mb-2">
+                                    <span class="font-mono">Input: ${JSON.stringify(testCase.input)}</span>
+                                    <span class="font-mono ml-4">Expected Output: ${testCase.expected}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="editor-container h-64" id="editor${question.id}"></div>
+                        <div class="mt-4">
+                            <button type="button" onclick="runCode(${question.id})" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition duration-200">
+                                Run Code
+                            </button>
+                        </div>
+                        <div id="result${question.id}" class="mt-4"></div>
+                    </div>
+                `;
+                
+                form.appendChild(questionDiv);
+                setTimeout(() => initializeEditor(question.id), 100);
+            });
+
+            // Add navigation buttons outside the questions loop
+            const navigationDiv = document.createElement('div');
+            navigationDiv.className = 'flex justify-between mt-6';
+            navigationDiv.innerHTML = `
+                <button id="prevButton" onclick="prevQuestion()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition duration-200">Previous</button>
+                <button id="nextButton" onclick="nextQuestion()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200">Next</button>
+            `;
+            form.appendChild(navigationDiv);
+
+            updateNavigation(1);
+        }
+
+        // Update navigation buttons
+        function updateNavigation(questionNumber) {
+            const prevButton = document.getElementById('prevButton');
+            const nextButton = document.getElementById('nextButton');
+            
+            if (prevButton && nextButton) {
+                prevButton.style.display = questionNumber === 1 ? 'none' : 'inline-block';
+                nextButton.textContent = questionNumber === examQuestions.length ? 'Submit' : 'Next';
+            }
+        }
+
+        // Navigation functions
+        function showQuestion(questionNumber) {
+            document.querySelectorAll('.question').forEach(q => q.classList.add('hidden'));
+            const questionElement = document.getElementById(`question${questionNumber}`);
+            if (questionElement) {
+                questionElement.classList.remove('hidden');
+                updateNavigation(questionNumber);
+                document.getElementById('currentQuestionNum').textContent = questionNumber;
+                updateProgress();
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestion < examQuestions.length) {
+                currentQuestion++;
+                showQuestion(currentQuestion);
+                updateProgress();
+            } else {
+                submitExam();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestion > 1) {
+                currentQuestion--;
+                showQuestion(currentQuestion);
+                updateProgress();
+            }
+        }
+
+        function submitExam() {
+            let totalScore = 0;
+            examQuestions.forEach(question => {
+                const resultDiv = document.getElementById(`result${question.id}`);
+                if (resultDiv && resultDiv.textContent) {
+                    const scoreMatch = resultDiv.textContent.match(/Score: ([\d.]+)/);
+                    if (scoreMatch) {
+                        totalScore += parseFloat(scoreMatch[1]);
+                    }
+                }
+            });
+
+            if (confirm(`Are you sure you want to submit the exam? Your current score is ${totalScore.toFixed(2)}/100`)) {
+                alert(`Exam completed! Final Score: ${totalScore.toFixed(2)}/100`);
+                // Add any additional submission logic here
+            }
+        }
+
+        // Fullscreen functions
+        let isExitingFullscreen = false;
+
+        function toggleFullScreen() {
+            const elem = document.documentElement;
+            const container = document.getElementById('examContainer');
+            
+            if (!document.fullscreenElement) {
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen().then(() => {
+                        container.classList.add('fullscreen-mode');
+                    });
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                    container.classList.add('fullscreen-mode');
+                }
+            } else {
+                showExitWarning();
+            }
+        }
+
+        function showExitWarning() {
+            document.getElementById('warningModal').style.display = 'block';
+            document.getElementById('modalOverlay').style.display = 'block';
+        }
+
+        function confirmExitFullscreen() {
+            isExitingFullscreen = true;
+            document.getElementById('warningModal').style.display = 'none';
+            document.getElementById('modalOverlay').style.display = 'none';
+            exitFullScreen();
+        }
+
+        function cancelExitFullscreen() {
+            document.getElementById('warningModal').style.display = 'none';
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+
+        function exitFullScreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+            document.getElementById('examContainer').classList.remove('fullscreen-mode');
+        }
+
+        // Handle fullscreen change
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+        function handleFullscreenChange() {
+            const container = document.getElementById('examContainer');
+            if (!document.fullscreenElement) {
+                container.classList.remove('fullscreen-mode');
+            }
+        }
+
+        // Initialize the exam
+        document.addEventListener('DOMContentLoaded', function() {
+            loadQuestions();
+            showQuestion(1);
+            setInterval(updateTimer, 1000);
+            updateNavDots();
+        });
+
+        function initializeEditor(questionId) {
+            let starterCode = `# The input value is already provided in the variable 'input_value'
+# Write your solution here
+
+def solution(input_value):
+    # Your code here
+    result = input_value  # Replace with your logic
+    return result
+
+# Print the result
+print(solution(input_value))`;
+
+            require(['vs/editor/editor.main'], function() {
+                const editor = monaco.editor.create(document.getElementById(`editor${questionId}`), {
+                    value: starterCode,
+                    language: 'python',
+                    theme: 'vs',
+                    minimap: { enabled: false },
+                    automaticLayout: true,
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    renderIndentGuides: true,
+                    contextmenu: true,
+                    wordWrap: 'on'
+                });
+                
+                editors[questionId] = editor;
+            });
+        }
+
+        async function runCode(questionId) {
+            const editor = editors[questionId];
+            if (!editor) return;
+
+            const code = editor.getValue();
+            const question = examQuestions.find(q => q.id === questionId);
+            const resultDiv = document.getElementById(`result${questionId}`);
+            resultDiv.innerHTML = '<div class="text-gray-600">Running tests...</div>';
+
+            try {
+                const response = await fetch('/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        testCases: question.testCases
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultDiv.innerHTML = `<div class="text-red-600">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                let html = '';
+                let score = 0;
+                
+                data.output.forEach((result, index) => {
+                    const testCase = question.testCases[index];
+                    const passed = result.trim() === testCase.expected.toString();
+                    if (passed) score += question.marks / question.testCases.length;
+                    
+                    html += `<div class="${passed ? 'text-green-600' : 'text-red-600'} mb-2">
+                        Test Case ${index + 1}: ${passed ? 'Passed' : 'Failed'}
+                        <br>Input: ${testCase.input}
+                        <br>Expected: ${testCase.expected}
+                        <br>Got: ${result}
+                    </div>`;
+                });
+
+                html += `<div class="mt-4 font-semibold">Score: ${score.toFixed(2)}/${question.marks}</div>`;
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="text-red-600">Error: ${error.message}</div>`;
+            }
+        }
+
+        function updateProgress() {
+            const progress = (currentQuestion / examQuestions.length) * 100;
+            document.getElementById('examProgress').style.width = `${progress}%`;
+        }
+
+        function updateTimer() {
+            const timeElapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(timeElapsed / 60);
+            const seconds = timeElapsed % 60;
+            document.getElementById('timer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Add this function to handle navigation dots
+        function updateNavDots() {
+            const navDots = document.querySelector('.nav-dots');
+            if (navDots) {
+                navDots.innerHTML = '';
+                for (let i = 1; i <= examQuestions.length; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = `nav-dot ${i === currentQuestion ? 'active' : ''}`;
+                    dot.onclick = () => {
+                        currentQuestion = i;
+                        showQuestion(i);
+                    };
+                    navDots.appendChild(dot);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
