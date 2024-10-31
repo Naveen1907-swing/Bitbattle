@@ -31,18 +31,21 @@
 
         .fullscreen-mode .container {
             flex: 1;
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-            padding: 1rem;
+            max-width: none !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 20px !important;
+            overflow-y: auto;
         }
 
         .fullscreen-mode .exam-header {
-            flex: 0 0 auto;
-            padding: 1rem;
+            position: sticky;
+            top: 0;
             background: white;
+            padding: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             z-index: 1000;
+            width: 100%;
         }
 
         /* Header Bar */
@@ -96,6 +99,7 @@
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            width: 100% !important;
         }
 
         /* Navigation Buttons */
@@ -193,9 +197,51 @@
             overflow-y: auto;
             padding: 1rem;
         }
+
+        /* Add responsive styles */
+        @media (max-width: 768px) {
+            body {
+                overflow: hidden;
+            }
+            
+            #mobileWarning {
+                display: block !important;
+            }
+            
+            #examContainer {
+                display: none !important;
+            }
+        }
+
+        /* Add styles for the monaco editor in fullscreen */
+        .fullscreen-mode .editor-container {
+            width: 100% !important;
+            max-width: none !important;
+        }
+
+        /* Update the question navigation in fullscreen */
+        .fullscreen-mode .question-nav {
+            left: 20px;
+        }
+
+        /* Update the timer position in fullscreen */
+        .fullscreen-mode .timer {
+            right: 20px;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
+    <!-- Add this right after the <body> tag -->
+    <div id="mobileWarning" class="fixed inset-0 bg-gray-900 text-white p-8 z-50 hidden">
+        <div class="max-w-md mx-auto text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <h2 class="text-2xl font-bold mb-4">Desktop Only</h2>
+            <p>This application is designed for desktop use only. Please access it from a computer for the best experience.</p>
+        </div>
+    </div>
+
     <!-- Progress Bar -->
     <div class="progress-bar">
         <div class="progress" id="examProgress"></div>
@@ -389,21 +435,30 @@
 
         // Navigation functions
         function showQuestion(questionNumber) {
+            // Ensure questionNumber is within bounds
+            if (questionNumber < 1 || questionNumber > examQuestions.length) return;
+            
             document.querySelectorAll('.question').forEach(q => q.classList.add('hidden'));
             const questionElement = document.getElementById(`question${questionNumber}`);
             if (questionElement) {
                 questionElement.classList.remove('hidden');
+                currentQuestion = questionNumber;
                 updateNavigation(questionNumber);
                 document.getElementById('currentQuestionNum').textContent = questionNumber;
                 updateProgress();
+                updateNavDots();
+                
+                // Refresh the editor layout
+                if (editors[questionNumber]) {
+                    editors[questionNumber].layout();
+                }
             }
         }
 
         function nextQuestion() {
-            if (currentQuestion < examQuestions.length) {
-                currentQuestion++;
-                showQuestion(currentQuestion);
-                updateProgress();
+            const nextQuestionNum = currentQuestion + 1;
+            if (nextQuestionNum <= examQuestions.length) {
+                showQuestion(nextQuestionNum);
             } else {
                 submitExam();
             }
@@ -411,9 +466,7 @@
 
         function prevQuestion() {
             if (currentQuestion > 1) {
-                currentQuestion--;
-                showQuestion(currentQuestion);
-                updateProgress();
+                showQuestion(currentQuestion - 1);
             }
         }
 
@@ -446,10 +499,18 @@
                 if (elem.requestFullscreen) {
                     elem.requestFullscreen().then(() => {
                         container.classList.add('fullscreen-mode');
+                        // Refresh all editor layouts after a short delay
+                        setTimeout(() => {
+                            Object.values(editors).forEach(editor => editor.layout());
+                        }, 100);
                     });
                 } else if (elem.webkitRequestFullscreen) {
                     elem.webkitRequestFullscreen();
                     container.classList.add('fullscreen-mode');
+                    // Refresh all editor layouts after a short delay
+                    setTimeout(() => {
+                        Object.values(editors).forEach(editor => editor.layout());
+                    }, 100);
                 }
             } else {
                 showExitWarning();
@@ -491,14 +552,36 @@
             if (!document.fullscreenElement) {
                 container.classList.remove('fullscreen-mode');
             }
+            // Refresh all editor layouts after fullscreen change
+            setTimeout(() => {
+                Object.values(editors).forEach(editor => editor.layout());
+            }, 100);
         }
 
         // Initialize the exam
         document.addEventListener('DOMContentLoaded', function() {
+            // Check if mobile device
+            if (window.innerWidth <= 768) {
+                document.getElementById('mobileWarning').style.display = 'block';
+                document.getElementById('examContainer').style.display = 'none';
+                return;
+            }
+            
             loadQuestions();
             showQuestion(1);
             setInterval(updateTimer, 1000);
             updateNavDots();
+        });
+
+        // Add window resize listener
+        window.addEventListener('resize', function() {
+            if (window.innerWidth <= 768) {
+                document.getElementById('mobileWarning').style.display = 'block';
+                document.getElementById('examContainer').style.display = 'none';
+            } else {
+                document.getElementById('mobileWarning').style.display = 'none';
+                document.getElementById('examContainer').style.display = 'block';
+            }
         });
 
         function initializeEditor(questionId) {
